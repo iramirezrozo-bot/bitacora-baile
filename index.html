@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Bitácora de Baile</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Bitácora" />
+<meta name="theme-color" content="#17151A" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #17151A;
+    color: #F2EDE4;
+    min-height: 100vh;
+    padding: 24px 16px 60px;
+    padding-top: max(24px, env(safe-area-inset-top));
+  }
+  .display { font-family: 'Oswald', sans-serif; letter-spacing: 0.02em; }
+  a { color: inherit; }
+
+  /* ---------- Login ---------- */
+  #login-screen {
+    max-width: 360px; margin: 15vh auto 0; text-align: center;
+  }
+  #login-screen h1 { font-size: 24px; text-transform: uppercase; margin-bottom: 6px; }
+  #login-screen p.sub { color: #A79FAE; font-size: 13px; margin-bottom: 24px; }
+  #login-screen input {
+    width: 100%; background: #1E1B22; border: 1px solid #2C2833; color: #F2EDE4;
+    border-radius: 8px; padding: 12px 14px; font-size: 14px; margin-bottom: 10px;
+  }
+  #login-screen input:focus { outline: 2px solid #E8B34E; }
+  .btn-primary {
+    width: 100%; background: #E8B34E; color: #17151A; border: none; border-radius: 8px;
+    padding: 12px; font-weight: 600; font-family: 'Oswald', sans-serif; text-transform: uppercase;
+    letter-spacing: 0.03em; cursor: pointer; font-size: 13px;
+  }
+  .link-btn { background: none; border: none; color: #6FA9C9; cursor: pointer; font-size: 12.5px; margin-top: 12px; }
+  #login-error { color: #D6577C; font-size: 12.5px; margin-top: 10px; min-height: 16px; }
+
+  /* ---------- App shell ---------- */
+  #app { display: none; max-width: 860px; margin: 0 auto; }
+  .header-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .title { font-size: 28px; font-weight: 700; text-transform: uppercase; margin: 0; line-height: 1; }
+  .subtitle { color: #A79FAE; font-size: 13px; margin-top: 6px; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn-new {
+    background: #E8B34E; color: #17151A; border: none; border-radius: 8px;
+    font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.03em; padding: 10px 16px; cursor: pointer;
+  }
+  .btn-ghost {
+    background: transparent; border: 1px solid #2C2833; color: #A79FAE; border-radius: 8px;
+    font-family: 'Inter', sans-serif; font-size: 13px; padding: 10px 14px; cursor: pointer;
+  }
+  .btn-ghost:hover { color: #F2EDE4; border-color: #A79FAE; }
+
+  /* reminder banner */
+  #reminders { max-width: 860px; margin: 0 auto 18px; display: flex; flex-direction: column; gap: 8px; }
+  .reminder-card {
+    background: #1E1B22; border: 1px solid #E8B34E; border-radius: 10px;
+    padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .reminder-text { font-size: 14px; }
+  .reminder-text b { color: #E8B34E; }
+  .reminder-actions { display: flex; gap: 8px; }
+  .reminder-actions button {
+    border: 1px solid #2C2833; background: transparent; color: #F2EDE4; border-radius: 6px;
+    padding: 7px 14px; font-size: 12.5px; cursor: pointer;
+  }
+  .reminder-actions button.yes:hover { background: rgba(123,174,143,0.16); border-color: #7BAE8F; color: #7BAE8F; }
+  .reminder-actions button.no:hover { background: rgba(214,87,124,0.16); border-color: #D6577C; color: #D6577C; }
+
+  .spotlight {
+    max-width: 860px; margin: 0 auto 22px; border-radius: 14px; overflow: hidden;
+    background: radial-gradient(ellipse 70% 140% at 15% 0%, rgba(232,179,78,0.16), transparent 60%), #1E1B22;
+    border: 1px solid #2C2833; display: grid; grid-template-columns: repeat(3, 1fr);
+  }
+  .stat { padding: 18px 16px; border-right: 1px solid #2C2833; }
+  .stat:last-child { border-right: none; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #A79FAE; margin-bottom: 6px; }
+  .stat-value { font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 600; }
+  .stat-value.warn { color: #E0793C; }
+  .stat-value.ok { color: #7BAE8F; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filter-btn {
+    background: transparent; border: 1px solid #2C2833; color: #A79FAE; border-radius: 20px;
+    padding: 6px 13px; font-size: 12.5px; cursor: pointer; font-family: 'Inter', sans-serif;
+  }
+  .filter-btn.active { background: #F2EDE4; color: #17151A; border-color: #F2EDE4; font-weight: 600; }
+
+  .month-label {
+    font-family: 'Oswald', sans-serif; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #6FA9C9; margin: 18px 0 8px; padding-bottom: 7px; border-bottom: 1px solid #2C2833;
+  }
+  .row {
+    display: flex; align-items: center; gap: 10px; padding: 11px 4px; border-bottom: 1px solid #221F27; flex-wrap: wrap;
+  }
+  .row-date { font-family: 'Oswald', sans-serif; font-size: 12.5px; color: #A79FAE; width: 48px; flex-shrink: 0; text-transform: uppercase; }
+  .badge { font-size: 10.5px; font-weight: 600; padding: 4px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; white-space: nowrap; }
+  .row-title { flex: 1; min-width: 120px; font-size: 14px; font-weight: 500; }
+  .row-title .notes { display: block; font-size: 11.5px; color: #A79FAE; font-weight: 400; margin-top: 2px; }
+  .row-amount { font-family: 'Oswald', sans-serif; font-size: 14.5px; width: 70px; text-align: right; flex-shrink: 0; }
+  .toggle {
+    border: 1px solid #2C2833; background: transparent; border-radius: 6px; padding: 5px 9px;
+    font-size: 11px; cursor: pointer; white-space: nowrap; color: #A79FAE; font-family: 'Inter', sans-serif;
+  }
+  .toggle.on.paid { background: rgba(123,174,143,0.16); border-color: #7BAE8F; color: #7BAE8F; }
+  .toggle.on.attended { background: rgba(111,169,201,0.16); border-color: #6FA9C9; color: #6FA9C9; }
+  .icon-btn { background: transparent; border: none; color: #6E6876; cursor: pointer; padding: 3px 5px; font-size: 14.5px; }
+  .icon-btn:hover { color: #F2EDE4; }
+  .empty { text-align: center; padding: 50px 20px; color: #6E6876; }
+  .empty-title { font-family: 'Oswald', sans-serif; font-size: 17px; color: #A79FAE; margin-bottom: 6px; text-transform: uppercase; }
+
+  .sync-indicator {
+    position: fixed; bottom: 16px; right: 16px; font-size: 11.5px; color: #6E6876;
+    background: #221F27; border: 1px solid #2C2833; padding: 6px 12px; border-radius: 20px;
+    opacity: 0; transition: opacity 0.2s ease; pointer-events: none;
+  }
+  .sync-indicator.show { opacity: 1; }
+
+  /* modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(10,9,12,0.7); display: none;
+    align-items: center; justify-content: center; padding: 18px; z-index: 50;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #1E1B22; border: 1px solid #2C2833; border-radius: 14px; width: 100%;
+    max-width: 440px; padding: 22px; max-height: 88vh; overflow-y: auto;
+  }
+  .modal-title { font-family: 'Oswald', sans-serif; font-size: 17px; text-transform: uppercase; margin: 0 0 16px; }
+  .field { margin-bottom: 13px; }
+  .field label { display: block; font-size: 11.5px; color: #A79FAE; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .field input, .field select, .field textarea {
+    width: 100%; background: #17151A; border: 1px solid #2C2833; color: #F2EDE4;
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; font-family: 'Inter', sans-serif;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid #E8B34E; border-color: transparent; }
+  .type-picker { display: flex; gap: 7px; }
+  .type-opt { flex: 1; border: 1px solid #2C2833; border-radius: 8px; padding: 8px 5px; text-align: center; font-size: 11.5px; cursor: pointer; background: transparent; color: #A79FAE; }
+  .type-opt.active { border-color: currentColor; font-weight: 600; }
+  .weekday-picker { display: flex; gap: 5px; }
+  .weekday-opt {
+    flex: 1; border: 1px solid #2C2833; border-radius: 8px; padding: 8px 0; text-align: center;
+    font-size: 11.5px; cursor: pointer; background: transparent; color: #A79FAE;
+  }
+  .weekday-opt.active { background: #6FA9C9; border-color: #6FA9C9; color: #17151A; font-weight: 600; }
+  .check-row { display: flex; gap: 16px; margin: 14px 0; }
+  .check-row label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; cursor: pointer; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+  .modal-actions button { flex: 1; }
+  .btn-secondary {
+    background: transparent; border: 1px solid #2C2833; color: #A79FAE; border-radius: 8px;
+    padding: 10px 14px; cursor: pointer; font-size: 12.5px; font-family: 'Inter', sans-serif;
+  }
+  .btn-danger { color: #D6577C; }
+  .template-select { margin-bottom: 16px; }
+
+  .template-list-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 4px; border-bottom: 1px solid #221F27; font-size: 13px;
+  }
+  .template-list-item .meta { color: #A79FAE; font-size: 11.5px; }
+
+  @media (max-width: 560px) {
+    .spotlight { grid-template-columns: 1fr; }
+    .stat { border-right: none; border-bottom: 1px solid #2C2833; }
+    .stat:last-child { border-bottom: none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <h1 class="display">Bitácora de Baile</h1>
+    <p class="sub">Inicia sesión para sincronizar tus clases en todos tus dispositivos</p>
+    <input id="login-email" type="email" placeholder="Correo" autocomplete="username" />
+    <input id="login-password" type="password" placeholder="Contraseña" autocomplete="current-password" />
+    <button class="btn-primary" id="login-btn">Entrar</button>
+    <button class="link-btn" id="toggle-mode-btn">¿Primera vez? Crear cuenta</button>
+    <div id="login-error"></div>
+  </div>
+
+  <!-- APP -->
+  <div id="app">
+    <div class="header-row">
+      <div>
+        <h1 class="title display">Bitácora de Baile</h1>
+        <div class="subtitle">Clases, pagos y shows en un solo lugar</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-ghost" id="templates-btn">Plantillas</button>
+        <button class="btn-ghost" id="logout-btn">Salir</button>
+        <button class="btn-new" id="new-entry-btn">+ Nueva entrada</button>
+      </div>
+    </div>
+
+    <div id="reminders"></div>
+
+    <div class="spotlight">
+      <div class="stat">
+        <div class="stat-label">Por cobrar</div>
+        <div class="stat-value warn display" id="stat-pending">$0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Cobrado este mes</div>
+        <div class="stat-value ok display" id="stat-collected">$0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Clases asistidas (mes)</div>
+        <div class="stat-value display" id="stat-attended">0</div>
+      </div>
+    </div>
+
+    <div class="filters" id="filters"></div>
+    <div id="list"></div>
+  </div>
+
+  <div class="sync-indicator" id="sync-indicator"></div>
+
+  <!-- ENTRY MODAL -->
+  <div class="overlay" id="entry-overlay">
+    <form class="modal" id="entry-form">
+      <h2 class="modal-title display" id="entry-modal-title">Nueva entrada</h2>
+
+      <div class="field template-select">
+        <label>Usar plantilla (opcional)</label>
+        <select id="entry-template"><option value="">— Ninguna —</option></select>
+      </div>
+
+      <div class="field">
+        <label>Tipo</label>
+        <div class="type-picker" id="entry-type-picker"></div>
+      </div>
+
+      <div class="field">
+        <label>Fecha</label>
+        <input type="date" id="entry-date" required />
+      </div>
+
+      <div class="field">
+        <label id="entry-title-label">Alumno/a</label>
+        <input type="text" id="entry-title" required />
+      </div>
+
+      <div class="field">
+        <label>Valor</label>
+        <input type="number" min="0" id="entry-amount" placeholder="0" />
+      </div>
+
+      <div class="check-row">
+        <label><input type="checkbox" id="entry-paid" /> Ya me pagaron</label>
+        <label><input type="checkbox" id="entry-attended" checked /> Asistida</label>
+      </div>
+
+      <div class="field">
+        <label>Notas (opcional)</label>
+        <textarea id="entry-notes" rows="2" placeholder="Detalles, horario, dirección…"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary" id="entry-submit-btn">Agregar</button>
+        <button type="button" class="btn-secondary" id="entry-cancel-btn">Cancelar</button>
+        <button type="button" class="btn-secondary btn-danger" id="entry-delete-btn" style="display:none;">Eliminar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- TEMPLATES MODAL -->
+  <div class="overlay" id="templates-overlay">
+    <div class="modal">
+      <h2 class="modal-title display">Plantillas de clases fijas</h2>
+      <div id="templates-list"></div>
+      <button class="btn-ghost" id="templates-add-btn" style="width:100%; margin-top:12px;">+ Agregar plantilla</button>
+      <button class="btn-secondary" id="templates-close-btn" style="width:100%; margin-top:10px;">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- TEMPLATE FORM MODAL -->
+  <div class="overlay" id="template-form-overlay">
+    <form class="modal" id="template-form">
+      <h2 class="modal-title display" id="template-modal-title">Nueva plantilla</h2>
+
+      <div class="field">
+        <label>Escuela / nombre</label>
+        <input type="text" id="tpl-title" required placeholder="Ej: Escuela Ritmo Vivo" />
+      </div>
+      <div class="field">
+        <label>Nivel (opcional)</label>
+        <input type="text" id="tpl-level" placeholder="Ej: Intermedio" />
+      </div>
+      <div class="field">
+        <label>Valor</label>
+        <input type="number" min="0" id="tpl-amount" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Días de la semana (para el recordatorio)</label>
+        <div class="weekday-picker" id="tpl-weekdays"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary" id="tpl-submit-btn">Guardar</button>
+        <button type="button" class="btn-secondary" id="tpl-cancel-btn">Cancelar</button>
+        <button type="button" class="btn-secondary btn-danger" id="tpl-delete-btn" style="display:none;">Eliminar</button>
+      </div>
+    </form>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+// ======================================================================
+// 1) PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE
+//    (Firebase console → Configuración del proyecto → tus apps → SDK config)
+// ======================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBKLOYN28NBLoYQsxLiO75HE2HWom9ITWM",
+  authDomain: "bitacora-baile.firebaseapp.com",
+  projectId: "bitacora-baile",
+  storageBucket: "bitacora-baile.firebasestorage.app",
+  messagingSenderId: "895023591229",
+  appId: "1:895023591229:web:c16da9d5b5e99064151f54"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const TYPES = {
+  personalizada: { label: "Personalizada", color: "#E8B34E", soft: "rgba(232,179,78,0.14)" },
+  fija:          { label: "Clase fija",    color: "#6FA9C9", soft: "rgba(111,169,201,0.14)" },
+  show:          { label: "Show",          color: "#D6577C", soft: "rgba(214,87,124,0.16)" },
+};
+const WEEKDAYS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+
+let uid = null;
+let entries = [];
+let templates = [];
+let filter = "todas";
+let unsubEntries = null, unsubTemplates = null;
+
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const todayISO = () => {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+};
+const fmtMoney = (n) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 0 }).format(n || 0);
+const monthLabel = (iso) => {
+  const d = new Date(iso + "T00:00:00");
+  const s = d.toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+const dayLabel = (iso) => {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short" }).replace(".", "");
+};
+const uidGen = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function showSync(msg) {
+  const el = $("sync-indicator");
+  el.textContent = msg; el.classList.add("show");
+  clearTimeout(showSync._t);
+  showSync._t = setTimeout(() => el.classList.remove("show"), 1300);
+}
+
+// ---------- AUTH ----------
+let isSignupMode = false;
+$("toggle-mode-btn").onclick = () => {
+  isSignupMode = !isSignupMode;
+  $("login-btn").textContent = isSignupMode ? "Crear cuenta" : "Entrar";
+  $("toggle-mode-btn").textContent = isSignupMode ? "¿Ya tienes cuenta? Entrar" : "¿Primera vez? Crear cuenta";
+};
+$("login-btn").onclick = async () => {
+  const email = $("login-email").value.trim();
+  const password = $("login-password").value;
+  $("login-error").textContent = "";
+  try {
+    if (isSignupMode) {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } else {
+      await signInWithEmailAndPassword(auth, email, password);
+    }
+  } catch (e) {
+    $("login-error").textContent = traducirErrorAuth(e.code);
+  }
+};
+function traducirErrorAuth(code) {
+  const map = {
+    "auth/invalid-email": "Correo inválido.",
+    "auth/user-not-found": "No existe una cuenta con ese correo.",
+    "auth/wrong-password": "Contraseña incorrecta.",
+    "auth/invalid-credential": "Correo o contraseña incorrectos.",
+    "auth/email-already-in-use": "Ya existe una cuenta con ese correo, intenta entrar.",
+    "auth/weak-password": "La contraseña necesita al menos 6 caracteres.",
+  };
+  return map[code] || "Ocurrió un error, intenta de nuevo.";
+}
+$("logout-btn").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    uid = user.uid;
+    $("login-screen").style.display = "none";
+    $("app").style.display = "block";
+    attachListeners();
+  } else {
+    uid = null;
+    $("login-screen").style.display = "block";
+    $("app").style.display = "none";
+    if (unsubEntries) unsubEntries();
+    if (unsubTemplates) unsubTemplates();
+    entries = []; templates = [];
+  }
+});
+
+// ---------- FIRESTORE SYNC ----------
+function attachListeners() {
+  unsubEntries = onSnapshot(collection(db, "users", uid, "entries"), (snap) => {
+    entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+  unsubTemplates = onSnapshot(collection(db, "users", uid, "templates"), (snap) => {
+    templates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+}
+
+async function saveEntry(entry) {
+  showSync("Guardando…");
+  await setDoc(doc(db, "users", uid, "entries", entry.id), entry);
+  showSync("Guardado ✓");
+}
+async function deleteEntry(id) {
+  await deleteDoc(doc(db, "users", uid, "entries", id));
+  showSync("Eliminado");
+}
+async function saveTemplate(tpl) {
+  await setDoc(doc(db, "users", uid, "templates", tpl.id), tpl);
+  showSync("Plantilla guardada ✓");
+}
+async function deleteTemplate(id) {
+  await deleteDoc(doc(db, "users", uid, "templates", id));
+}
+
+// ---------- RENDER ----------
+function render() {
+  renderFilters();
+  renderReminders();
+  renderStats();
+  renderList();
+}
+
+function renderFilters() {
+  const els = [["todas","Todas"],["personalizada","Personalizadas"],["fija","Fijas"],["show","Shows"]];
+  $("filters").innerHTML = els.map(([key,label]) =>
+    `<button class="filter-btn ${filter===key?'active':''}" data-filter="${key}">${label}</button>`
+  ).join("");
+  $("filters").querySelectorAll("button").forEach(b => {
+    b.onclick = () => { filter = b.dataset.filter; render(); };
+  });
+}
+
+function renderReminders() {
+  const today = todayISO();
+  const todayWeekday = new Date(today + "T00:00:00").getDay();
+  const pending = templates.filter(t =>
+    (t.weekdays || []).includes(todayWeekday) &&
+    !entries.some(e => e.templateId === t.id && e.date === today)
+  );
+  $("reminders").innerHTML = pending.map(t => `
+    <div class="reminder-card">
+      <div class="reminder-text">¿Diste hoy tu clase en <b>${escapeHtml(t.title)}</b>?</div>
+      <div class="reminder-actions">
+        <button class="yes" data-tpl="${t.id}" data-yes="1">Sí, asistí</button>
+        <button class="no" data-tpl="${t.id}" data-yes="0">No asistí</button>
+      </div>
+    </div>
+  `).join("");
+  $("reminders").querySelectorAll("button").forEach(btn => {
+    btn.onclick = async () => {
+      const tpl = templates.find(t => t.id === btn.dataset.tpl);
+      const attended = btn.dataset.yes === "1";
+      await saveEntry({
+        id: uidGen(), date: today, type: "fija", title: tpl.title,
+        amount: Number(tpl.amount) || 0, paid: false, attended,
+        notes: tpl.level ? `Nivel: ${tpl.level}` : "", templateId: tpl.id,
+      });
+    };
+  });
+}
+
+function renderStats() {
+  const now = new Date();
+  const curMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  let pending=0, collectedMonth=0, attendedMonth=0;
+  entries.forEach(en => {
+    if (!en.paid) pending += en.amount;
+    if (en.date.slice(0,7) === curMonth) {
+      if (en.paid) collectedMonth += en.amount;
+      if (en.attended) attendedMonth += 1;
+    }
+  });
+  $("stat-pending").textContent = "$" + fmtMoney(pending);
+  $("stat-collected").textContent = "$" + fmtMoney(collectedMonth);
+  $("stat-attended").textContent = attendedMonth;
+}
+
+function renderList() {
+  const list = filter === "todas" ? entries : entries.filter(e => e.type === filter);
+  const sorted = [...list].sort((a,b) => a.date < b.date ? 1 : -1);
+  if (sorted.length === 0) {
+    $("list").innerHTML = `<div class="empty"><div class="empty-title">Todavía no hay nada aquí</div>Registra tu primera clase, escuela fija o show con "+ Nueva entrada".</div>`;
+    return;
+  }
+  const groups = new Map();
+  sorted.forEach(en => {
+    const key = en.date.slice(0,7);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(en);
+  });
+  let html = "";
+  for (const [, rows] of groups) {
+    html += `<div class="month-label">${monthLabel(rows[0].date)}</div>`;
+    rows.forEach(en => {
+      const t = TYPES[en.type];
+      html += `
+        <div class="row" data-id="${en.id}">
+          <div class="row-date">${dayLabel(en.date)}</div>
+          <div class="badge" style="background:${t.soft}; color:${t.color}">${t.label}</div>
+          <div class="row-title">${escapeHtml(en.title)}${en.notes ? `<span class="notes">${escapeHtml(en.notes)}</span>` : ""}</div>
+          <div class="row-amount display">$${fmtMoney(en.amount)}</div>
+          <button class="toggle ${en.paid ? "on paid" : ""}" data-action="paid">${en.paid ? "Pagado ✓" : "Pendiente"}</button>
+          <button class="toggle ${en.attended ? "on attended" : ""}" data-action="attended">${en.attended ? "Asistida ✓" : "No asistida"}</button>
+          <button class="icon-btn" data-action="duplicate" title="Duplicar">⧉</button>
+          <button class="icon-btn" data-action="edit" title="Editar">✎</button>
+          <button class="icon-btn" data-action="delete" title="Eliminar">✕</button>
+        </div>`;
+    });
+  }
+  $("list").innerHTML = html;
+  $("list").querySelectorAll(".row").forEach(row => {
+    const id = row.dataset.id;
+    const entry = entries.find(e => e.id === id);
+    row.querySelectorAll("button").forEach(btn => {
+      btn.onclick = () => handleRowAction(btn.dataset.action, entry);
+    });
+  });
+}
+
+function handleRowAction(action, entry) {
+  if (action === "paid") saveEntry({ ...entry, paid: !entry.paid });
+  if (action === "attended") saveEntry({ ...entry, attended: !entry.attended });
+  if (action === "delete") deleteEntry(entry.id);
+  if (action === "edit") openEntryModal(entry);
+  if (action === "duplicate") openEntryModal({ ...entry, id: null, date: todayISO() });
+}
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = str ?? "";
+  return d.innerHTML;
+}
+
+// ---------- ENTRY MODAL ----------
+let currentEntryId = null;
+function buildTypePicker(selectedType) {
+  $("entry-type-picker").innerHTML = Object.entries(TYPES).map(([key,t]) =>
+    `<button type="button" class="type-opt ${selectedType===key?'active':''}" data-type="${key}" style="${selectedType===key?`color:${t.color}`:''}">${t.label}</button>`
+  ).join("");
+  $("entry-type-picker").querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      $("entry-type-picker").querySelectorAll("button").forEach(x => { x.classList.remove("active"); x.style.color=""; });
+      b.classList.add("active"); b.style.color = TYPES[b.dataset.type].color;
+      updateTitleLabel(b.dataset.type);
+    };
+  });
+}
+function updateTitleLabel(type) {
+  $("entry-title-label").textContent = type === "show" ? "Nombre del show" : type === "fija" ? "Escuela" : "Alumno/a";
+}
+function getSelectedType() {
+  const active = $("entry-type-picker").querySelector(".type-opt.active");
+  return active ? active.dataset.type : "personalizada";
+}
+function populateTemplateSelect() {
+  $("entry-template").innerHTML = `<option value="">— Ninguna —</option>` +
+    templates.map(t => `<option value="${t.id}">${escapeHtml(t.title)}${t.level ? " · "+escapeHtml(t.level) : ""}</option>`).join("");
+}
+$("entry-template").onchange = () => {
+  const tpl = templates.find(t => t.id === $("entry-template").value);
+  if (!tpl) return;
+  $("entry-title").value = tpl.title;
+  $("entry-amount").value = tpl.amount || "";
+  if (tpl.level) $("entry-notes").value = `Nivel: ${tpl.level}`;
+  buildTypePicker("fija");
+};
+
+function openEntryModal(entry) {
+  currentEntryId = entry?.id || null;
+  populateTemplateSelect();
+  $("entry-template").value = "";
+  buildTypePicker(entry?.type || "personalizada");
+  updateTitleLabel(entry?.type || "personalizada");
+  $("entry-date").value = entry?.date || todayISO();
+  $("entry-title").value = entry?.title || "";
+  $("entry-amount").value = entry?.amount ?? "";
+  $("entry-paid").checked = !!entry?.paid;
+  $("entry-attended").checked = entry?.attended !== undefined ? entry.attended : true;
+  $("entry-notes").value = entry?.notes || "";
+  $("entry-modal-title").textContent = currentEntryId ? "Editar entrada" : "Nueva entrada";
+  $("entry-submit-btn").textContent = currentEntryId ? "Guardar cambios" : "Agregar";
+  $("entry-delete-btn").style.display = currentEntryId ? "block" : "none";
+  $("entry-overlay").classList.add("open");
+}
+$("new-entry-btn").onclick = () => openEntryModal(null);
+$("entry-cancel-btn").onclick = () => $("entry-overlay").classList.remove("open");
+$("entry-overlay").onclick = (e) => { if (e.target.id === "entry-overlay") $("entry-overlay").classList.remove("open"); };
+$("entry-delete-btn").onclick = () => {
+  if (currentEntryId) deleteEntry(currentEntryId);
+  $("entry-overlay").classList.remove("open");
+};
+$("entry-form").onsubmit = (e) => {
+  e.preventDefault();
+  const title = $("entry-title").value.trim();
+  if (!title) return;
+  const entry = {
+    id: currentEntryId || uidGen(),
+    date: $("entry-date").value,
+    type: getSelectedType(),
+    title,
+    amount: Number($("entry-amount").value) || 0,
+    paid: $("entry-paid").checked,
+    attended: $("entry-attended").checked,
+    notes: $("entry-notes").value.trim(),
+  };
+  const tplId = $("entry-template").value;
+  if (tplId) entry.templateId = tplId;
+  saveEntry(entry);
+  $("entry-overlay").classList.remove("open");
+};
+
+// ---------- TEMPLATES MODAL ----------
+$("templates-btn").onclick = () => { renderTemplatesList(); $("templates-overlay").classList.add("open"); };
+$("templates-close-btn").onclick = () => $("templates-overlay").classList.remove("open");
+$("templates-overlay").onclick = (e) => { if (e.target.id === "templates-overlay") $("templates-overlay").classList.remove("open"); };
+
+function renderTemplatesList() {
+  if (templates.length === 0) {
+    $("templates-list").innerHTML = `<div class="empty" style="padding:24px 4px;">Aún no tienes plantillas.</div>`;
+    return;
+  }
+  $("templates-list").innerHTML = templates.map(t => `
+    <div class="template-list-item">
+      <div>
+        <div>${escapeHtml(t.title)}${t.level ? " · " + escapeHtml(t.level) : ""}</div>
+        <div class="meta">$${fmtMoney(t.amount)} · ${(t.weekdays||[]).map(w=>WEEKDAYS[w]).join(", ") || "sin días asignados"}</div>
+      </div>
+      <button class="icon-btn" data-id="${t.id}" title="Editar">✎</button>
+    </div>
+  `).join("");
+  $("templates-list").querySelectorAll("button").forEach(b => {
+    b.onclick = () => openTemplateForm(templates.find(t => t.id === b.dataset.id));
+  });
+}
+$("templates-add-btn").onclick = () => openTemplateForm(null);
+
+let currentTplId = null;
+let selectedWeekdays = [];
+function buildWeekdayPicker() {
+  $("tpl-weekdays").innerHTML = WEEKDAYS.map((w,i) =>
+    `<button type="button" class="weekday-opt ${selectedWeekdays.includes(i)?'active':''}" data-day="${i}">${w}</button>`
+  ).join("");
+  $("tpl-weekdays").querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      const day = Number(b.dataset.day);
+      selectedWeekdays = selectedWeekdays.includes(day) ? selectedWeekdays.filter(d=>d!==day) : [...selectedWeekdays, day];
+      buildWeekdayPicker();
+    };
+  });
+}
+function openTemplateForm(tpl) {
+  currentTplId = tpl?.id || null;
+  selectedWeekdays = tpl?.weekdays ? [...tpl.weekdays] : [];
+  $("tpl-title").value = tpl?.title || "";
+  $("tpl-level").value = tpl?.level || "";
+  $("tpl-amount").value = tpl?.amount ?? "";
+  buildWeekdayPicker();
+  $("template-modal-title").textContent = currentTplId ? "Editar plantilla" : "Nueva plantilla";
+  $("tpl-delete-btn").style.display = currentTplId ? "block" : "none";
+  $("templates-overlay").classList.remove("open");
+  $("template-form-overlay").classList.add("open");
+}
+$("tpl-cancel-btn").onclick = () => {
+  $("template-form-overlay").classList.remove("open");
+  $("templates-overlay").classList.add("open");
+};
+$("template-form-overlay").onclick = (e) => { if (e.target.id === "template-form-overlay") $("template-form-overlay").classList.remove("open"); };
+$("tpl-delete-btn").onclick = () => {
+  if (currentTplId) deleteTemplate(currentTplId);
+  $("template-form-overlay").classList.remove("open");
+};
+$("template-form").onsubmit = (e) => {
+  e.preventDefault();
+  const title = $("tpl-title").value.trim();
+  if (!title) return;
+  saveTemplate({
+    id: currentTplId || uidGen(),
+    title,
+    level: $("tpl-level").value.trim(),
+    amount: Number($("tpl-amount").value) || 0,
+    weekdays: selectedWeekdays,
+  });
+  $("template-form-overlay").classList.remove("open");
+};
+
+// register service worker for installability (best-effort)
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js").catch(() => {});
+}
+</script>
+</body>
+</html>
