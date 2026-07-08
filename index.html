@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>¡Clases Azukrr!</title>
+<title>Bitácora de Baile</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Bitácora" />
@@ -93,8 +93,26 @@
   .filter-btn {
     background: transparent; border: 1px solid #2C2833; color: #A79FAE; border-radius: 20px;
     padding: 6px 13px; font-size: 12.5px; cursor: pointer; font-family: 'Inter', sans-serif;
+    display: inline-flex; align-items: center; gap: 6px;
   }
   .filter-btn.active { background: #F2EDE4; color: #17151A; border-color: #F2EDE4; font-weight: 600; }
+  .filter-count {
+    font-family: 'Oswald', sans-serif; font-size: 10.5px; background: rgba(255,255,255,0.08);
+    color: inherit; border-radius: 10px; padding: 1px 7px; min-width: 16px; text-align: center;
+  }
+  .filter-btn.active .filter-count { background: rgba(23,21,26,0.12); }
+
+  /* ---------- Historial mensual ---------- */
+  .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .history-table th {
+    text-align: left; font-family: 'Oswald', sans-serif; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #A79FAE; padding: 8px 6px; border-bottom: 1px solid #2C2833;
+  }
+  .history-table td { padding: 10px 6px; border-bottom: 1px solid #221F27; }
+  .history-table td.num { font-family: 'Oswald', sans-serif; text-align: right; }
+  .history-table td.pending { color: #E0793C; }
+  .history-table td.collected { color: #7BAE8F; }
+  .history-month { text-transform: capitalize; }
 
   .month-label {
     font-family: 'Oswald', sans-serif; font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.1em;
@@ -181,7 +199,7 @@
 
   <!-- LOGIN -->
   <div id="login-screen">
-    <h1 class="display">¡Hola, Azukr!</h1>
+    <h1 class="display">Bitácora de Baile</h1>
     <p class="sub">Inicia sesión para sincronizar tus clases en todos tus dispositivos</p>
     <input id="login-email" type="email" placeholder="Correo" autocomplete="username" />
     <input id="login-password" type="password" placeholder="Contraseña" autocomplete="current-password" />
@@ -194,10 +212,11 @@
   <div id="app">
     <div class="header-row">
       <div>
-        <h1 class="title display">Control de Clases Azukrr</h1>
+        <h1 class="title display">Bitácora de Baile</h1>
         <div class="subtitle">Clases, pagos y shows en un solo lugar</div>
       </div>
       <div class="header-actions">
+        <button class="btn-ghost" id="history-btn">Historial</button>
         <button class="btn-ghost" id="templates-btn">Plantillas</button>
         <button class="btn-ghost" id="logout-btn">Salir</button>
         <button class="btn-new" id="new-entry-btn">+ Nueva entrada</button>
@@ -275,6 +294,20 @@
     </form>
   </div>
 
+  <!-- HISTORY MODAL -->
+  <div class="overlay" id="history-overlay">
+    <div class="modal">
+      <h2 class="modal-title display">Historial mensual</h2>
+      <table class="history-table">
+        <thead>
+          <tr><th>Mes</th><th style="text-align:right;">Asistidas</th><th style="text-align:right;">Cobrado</th><th style="text-align:right;">Pendiente</th></tr>
+        </thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <button class="btn-secondary" id="history-close-btn" style="width:100%; margin-top:14px;">Cerrar</button>
+    </div>
+  </div>
+
   <!-- TEMPLATES MODAL -->
   <div class="overlay" id="templates-overlay">
     <div class="modal">
@@ -329,12 +362,12 @@ import {
 //    (Firebase console → Configuración del proyecto → tus apps → SDK config)
 // ======================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyBKLOYN28NBLoYQsxLiO75HE2HWom9ITWM",
-  authDomain: "bitacora-baile.firebaseapp.com",
-  projectId: "bitacora-baile",
-  storageBucket: "bitacora-baile.firebasestorage.app",
-  messagingSenderId: "895023591229",
-  appId: "1:895023591229:web:c16da9d5b5e99064151f54"
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -466,14 +499,47 @@ function render() {
 }
 
 function renderFilters() {
+  const counts = {
+    todas: entries.length,
+    personalizada: entries.filter(e => e.type === "personalizada").length,
+    fija: entries.filter(e => e.type === "fija").length,
+    show: entries.filter(e => e.type === "show").length,
+  };
   const els = [["todas","Todas"],["personalizada","Personalizadas"],["fija","Fijas"],["show","Shows"]];
   $("filters").innerHTML = els.map(([key,label]) =>
-    `<button class="filter-btn ${filter===key?'active':''}" data-filter="${key}">${label}</button>`
+    `<button class="filter-btn ${filter===key?'active':''}" data-filter="${key}">${label}<span class="filter-count">${counts[key]}</span></button>`
   ).join("");
   $("filters").querySelectorAll("button").forEach(b => {
     b.onclick = () => { filter = b.dataset.filter; render(); };
   });
 }
+
+function renderHistory() {
+  const map = new Map(); // monthKey -> { attended, collected, pending }
+  entries.forEach(en => {
+    const key = en.date.slice(0,7);
+    if (!map.has(key)) map.set(key, { attended: 0, collected: 0, pending: 0 });
+    const m = map.get(key);
+    if (en.attended) m.attended += 1;
+    if (en.paid) m.collected += en.amount; else m.pending += en.amount;
+  });
+  const rows = [...map.entries()].sort((a,b) => a[0] < b[0] ? 1 : -1);
+  if (rows.length === 0) {
+    $("history-body").innerHTML = `<tr><td colspan="4" style="text-align:center; color:#6E6876; padding:24px 4px;">Aún no hay datos para mostrar.</td></tr>`;
+    return;
+  }
+  $("history-body").innerHTML = rows.map(([key, m]) => `
+    <tr>
+      <td class="history-month">${monthLabel(key + "-01")}</td>
+      <td class="num">${m.attended}</td>
+      <td class="num collected">$${fmtMoney(m.collected)}</td>
+      <td class="num pending">$${fmtMoney(m.pending)}</td>
+    </tr>
+  `).join("");
+}
+$("history-btn").onclick = () => { renderHistory(); $("history-overlay").classList.add("open"); };
+$("history-close-btn").onclick = () => $("history-overlay").classList.remove("open");
+$("history-overlay").onclick = (e) => { if (e.target.id === "history-overlay") $("history-overlay").classList.remove("open"); };
 
 function renderReminders() {
   const today = todayISO();
