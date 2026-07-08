@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>¡Clases de Azukrr!</title>
+<title>Bitácora de Baile</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Bitácora" />
@@ -188,6 +188,23 @@
   }
   .template-list-item .meta { color: #A79FAE; font-size: 11.5px; }
 
+  /* ---------- Paquetes ---------- */
+  .package-item { padding: 11px 4px; border-bottom: 1px solid #221F27; }
+  .package-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+  .package-item .meta { color: #A79FAE; font-size: 11.5px; margin-top: 5px; }
+  .progress-bar { background: #17151A; border: 1px solid #2C2833; border-radius: 6px; height: 6px; overflow: hidden; margin-top: 7px; }
+  .progress-fill { background: #E8B34E; height: 100%; }
+  .progress-fill.complete { background: #7BAE8F; }
+  .package-badge {
+    font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+    background: rgba(232,179,78,0.14); color: #E8B34E; flex-shrink: 0; white-space: nowrap;
+  }
+  #entry-package-section { display: none; }
+  #entry-package-section.visible { display: block; }
+  #new-package-fields { display: none; gap: 8px; margin-top: 8px; }
+  #new-package-fields.visible { display: flex; }
+  #new-package-fields input { flex: 1; }
+
   @media (max-width: 560px) {
     .spotlight { grid-template-columns: 1fr; }
     .stat { border-right: none; border-bottom: 1px solid #2C2833; }
@@ -199,7 +216,7 @@
 
   <!-- LOGIN -->
   <div id="login-screen">
-    <h1 class="display">Clases de Azukrr</h1>
+    <h1 class="display">Bitácora de Baile</h1>
     <p class="sub">Inicia sesión para sincronizar tus clases en todos tus dispositivos</p>
     <input id="login-email" type="email" placeholder="Correo" autocomplete="username" />
     <input id="login-password" type="password" placeholder="Contraseña" autocomplete="current-password" />
@@ -212,11 +229,12 @@
   <div id="app">
     <div class="header-row">
       <div>
-        <h1 class="title display">Control Clases Azukrr</h1>
+        <h1 class="title display">Bitácora de Baile</h1>
         <div class="subtitle">Clases, pagos y shows en un solo lugar</div>
       </div>
       <div class="header-actions">
         <button class="btn-ghost" id="history-btn">Historial</button>
+        <button class="btn-ghost" id="packages-btn">Paquetes</button>
         <button class="btn-ghost" id="templates-btn">Plantillas</button>
         <button class="btn-ghost" id="logout-btn">Salir</button>
         <button class="btn-new" id="new-entry-btn">+ Nueva entrada</button>
@@ -276,6 +294,15 @@
         <input type="number" min="0" id="entry-amount" placeholder="0" />
       </div>
 
+      <div class="field" id="entry-package-section">
+        <label>Paquete de clases (opcional)</label>
+        <select id="entry-package"><option value="">— Ninguno —</option><option value="__new__">+ Crear paquete nuevo</option></select>
+        <div id="new-package-fields">
+          <input type="text" id="new-package-name" placeholder="Nombre del alumno/a" />
+          <input type="number" id="new-package-total" placeholder="10" min="1" style="max-width:80px;" />
+        </div>
+      </div>
+
       <div class="check-row">
         <label><input type="checkbox" id="entry-paid" /> Ya me pagaron</label>
         <label><input type="checkbox" id="entry-attended" checked /> Asistida</label>
@@ -306,6 +333,36 @@
       </table>
       <button class="btn-secondary" id="history-close-btn" style="width:100%; margin-top:14px;">Cerrar</button>
     </div>
+  </div>
+
+  <!-- PACKAGES MODAL -->
+  <div class="overlay" id="packages-overlay">
+    <div class="modal">
+      <h2 class="modal-title display">Paquetes de clases</h2>
+      <div id="packages-list"></div>
+      <button class="btn-ghost" id="packages-add-btn" style="width:100%; margin-top:12px;">+ Agregar paquete</button>
+      <button class="btn-secondary" id="packages-close-btn" style="width:100%; margin-top:10px;">Cerrar</button>
+    </div>
+  </div>
+
+  <!-- PACKAGE FORM MODAL -->
+  <div class="overlay" id="package-form-overlay">
+    <form class="modal" id="package-form">
+      <h2 class="modal-title display" id="package-modal-title">Nuevo paquete</h2>
+      <div class="field">
+        <label>Alumno/a</label>
+        <input type="text" id="pkg-title" required placeholder="Ej: Camila Rojas" />
+      </div>
+      <div class="field">
+        <label>Total de clases del paquete</label>
+        <input type="number" id="pkg-total" min="1" value="10" required />
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary" id="pkg-submit-btn">Guardar</button>
+        <button type="button" class="btn-secondary" id="pkg-cancel-btn">Cancelar</button>
+        <button type="button" class="btn-secondary btn-danger" id="pkg-delete-btn" style="display:none;">Eliminar</button>
+      </div>
+    </form>
   </div>
 
   <!-- TEMPLATES MODAL -->
@@ -362,12 +419,12 @@ import {
 //    (Firebase console → Configuración del proyecto → tus apps → SDK config)
 // ======================================================================
 const firebaseConfig = {
-  apiKey: "AIzaSyBKLOYN28NBLoYQsxLiO75HE2HWom9ITWM",
-  authDomain: "bitacora-baile.firebaseapp.com",
-  projectId: "bitacora-baile",
-  storageBucket: "bitacora-baile.firebasestorage.app",
-  messagingSenderId: "895023591229",
-  appId: "1:895023591229:web:c16da9d5b5e99064151f54"
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -384,8 +441,9 @@ const WEEKDAYS = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
 let uid = null;
 let entries = [];
 let templates = [];
+let packages = [];
 let filter = "todas";
-let unsubEntries = null, unsubTemplates = null;
+let unsubEntries = null, unsubTemplates = null, unsubPackages = null;
 
 // ---------- helpers ----------
 const $ = (id) => document.getElementById(id);
@@ -457,7 +515,8 @@ onAuthStateChanged(auth, (user) => {
     $("app").style.display = "none";
     if (unsubEntries) unsubEntries();
     if (unsubTemplates) unsubTemplates();
-    entries = []; templates = [];
+    if (unsubPackages) unsubPackages();
+    entries = []; templates = []; packages = [];
   }
 });
 
@@ -469,6 +528,10 @@ function attachListeners() {
   });
   unsubTemplates = onSnapshot(collection(db, "users", uid, "templates"), (snap) => {
     templates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+  unsubPackages = onSnapshot(collection(db, "users", uid, "packages"), (snap) => {
+    packages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   });
 }
@@ -488,6 +551,16 @@ async function saveTemplate(tpl) {
 }
 async function deleteTemplate(id) {
   await deleteDoc(doc(db, "users", uid, "templates", id));
+}
+async function savePackage(pkg) {
+  await setDoc(doc(db, "users", uid, "packages", pkg.id), pkg);
+  showSync("Paquete guardado ✓");
+}
+async function deletePackage(id) {
+  await deleteDoc(doc(db, "users", uid, "packages", id));
+}
+function packageUsed(pkgId) {
+  return entries.filter(e => e.packageId === pkgId && e.attended).length;
 }
 
 // ---------- RENDER ----------
@@ -604,11 +677,17 @@ function renderList() {
     html += `<div class="month-label">${monthLabel(rows[0].date)}</div>`;
     rows.forEach(en => {
       const t = TYPES[en.type];
+      let pkgBadge = "";
+      if (en.packageId) {
+        const pkg = packages.find(p => p.id === en.packageId);
+        if (pkg) pkgBadge = `<div class="package-badge">Paquete ${packageUsed(pkg.id)}/${pkg.total}</div>`;
+      }
       html += `
         <div class="row" data-id="${en.id}">
           <div class="row-date">${dayLabel(en.date)}</div>
           <div class="badge" style="background:${t.soft}; color:${t.color}">${t.label}</div>
           <div class="row-title">${escapeHtml(en.title)}${en.notes ? `<span class="notes">${escapeHtml(en.notes)}</span>` : ""}</div>
+          ${pkgBadge}
           <div class="row-amount display">$${fmtMoney(en.amount)}</div>
           <button class="toggle ${en.paid ? "on paid" : ""}" data-action="paid">${en.paid ? "Pagado ✓" : "Pendiente"}</button>
           <button class="toggle ${en.attended ? "on attended" : ""}" data-action="attended">${en.attended ? "Asistida ✓" : "No asistida"}</button>
@@ -653,9 +732,36 @@ function buildTypePicker(selectedType) {
       $("entry-type-picker").querySelectorAll("button").forEach(x => { x.classList.remove("active"); x.style.color=""; });
       b.classList.add("active"); b.style.color = TYPES[b.dataset.type].color;
       updateTitleLabel(b.dataset.type);
+      updatePackageSectionVisibility(b.dataset.type);
     };
   });
+  updatePackageSectionVisibility(selectedType);
 }
+function updatePackageSectionVisibility(type) {
+  const section = $("entry-package-section");
+  if (type === "personalizada") {
+    section.classList.add("visible");
+    populatePackageSelect();
+  } else {
+    section.classList.remove("visible");
+    $("entry-package").value = "";
+    $("new-package-fields").classList.remove("visible");
+  }
+}
+function populatePackageSelect(selectedId) {
+  const options = packages.map(p => {
+    const used = packageUsed(p.id);
+    const label = `${p.title} — ${used}/${p.total}${used >= p.total ? " (completo)" : ""}`;
+    return `<option value="${p.id}">${escapeHtml(label)}</option>`;
+  }).join("");
+  $("entry-package").innerHTML = `<option value="">— Ninguno —</option>${options}<option value="__new__">+ Crear paquete nuevo</option>`;
+  $("entry-package").value = selectedId || "";
+}
+$("entry-package").onchange = () => {
+  const isNew = $("entry-package").value === "__new__";
+  $("new-package-fields").classList.toggle("visible", isNew);
+  if (isNew) $("new-package-name").value = $("entry-title").value;
+};
 function updateTitleLabel(type) {
   $("entry-title-label").textContent = type === "show" ? "Nombre del show" : type === "fija" ? "Escuela" : "Alumno/a";
 }
@@ -688,6 +794,10 @@ function openEntryModal(entry) {
   $("entry-paid").checked = !!entry?.paid;
   $("entry-attended").checked = entry?.attended !== undefined ? entry.attended : true;
   $("entry-notes").value = entry?.notes || "";
+  $("new-package-fields").classList.remove("visible");
+  $("new-package-name").value = "";
+  $("new-package-total").value = "";
+  if ((entry?.type || "personalizada") === "personalizada") populatePackageSelect(entry?.packageId);
   $("entry-modal-title").textContent = currentEntryId ? "Editar entrada" : "Nueva entrada";
   $("entry-submit-btn").textContent = currentEntryId ? "Guardar cambios" : "Agregar";
   $("entry-delete-btn").style.display = currentEntryId ? "block" : "none";
@@ -700,14 +810,15 @@ $("entry-delete-btn").onclick = () => {
   if (currentEntryId) deleteEntry(currentEntryId);
   $("entry-overlay").classList.remove("open");
 };
-$("entry-form").onsubmit = (e) => {
+$("entry-form").onsubmit = async (e) => {
   e.preventDefault();
   const title = $("entry-title").value.trim();
   if (!title) return;
+  const type = getSelectedType();
   const entry = {
     id: currentEntryId || uidGen(),
     date: $("entry-date").value,
-    type: getSelectedType(),
+    type,
     title,
     amount: Number($("entry-amount").value) || 0,
     paid: $("entry-paid").checked,
@@ -716,6 +827,22 @@ $("entry-form").onsubmit = (e) => {
   };
   const tplId = $("entry-template").value;
   if (tplId) entry.templateId = tplId;
+
+  if (type === "personalizada") {
+    const pkgSel = $("entry-package").value;
+    if (pkgSel === "__new__") {
+      const newPkg = {
+        id: uidGen(),
+        title: $("new-package-name").value.trim() || title,
+        total: Number($("new-package-total").value) || 10,
+      };
+      await savePackage(newPkg);
+      entry.packageId = newPkg.id;
+    } else if (pkgSel) {
+      entry.packageId = pkgSel;
+    }
+  }
+
   saveEntry(entry);
   $("entry-overlay").classList.remove("open");
 };
@@ -792,6 +919,67 @@ $("template-form").onsubmit = (e) => {
     weekdays: selectedWeekdays,
   });
   $("template-form-overlay").classList.remove("open");
+};
+
+// ---------- PACKAGES MODAL ----------
+$("packages-btn").onclick = () => { renderPackagesList(); $("packages-overlay").classList.add("open"); };
+$("packages-close-btn").onclick = () => $("packages-overlay").classList.remove("open");
+$("packages-overlay").onclick = (e) => { if (e.target.id === "packages-overlay") $("packages-overlay").classList.remove("open"); };
+
+function renderPackagesList() {
+  if (packages.length === 0) {
+    $("packages-list").innerHTML = `<div class="empty" style="padding:24px 4px;">Aún no tienes paquetes. Se crean desde una clase personalizada, o aquí mismo.</div>`;
+    return;
+  }
+  $("packages-list").innerHTML = packages.map(p => {
+    const used = packageUsed(p.id);
+    const pct = Math.min(100, Math.round((used / p.total) * 100));
+    return `
+      <div class="package-item">
+        <div class="package-item-top">
+          <div>${escapeHtml(p.title)}</div>
+          <button class="icon-btn" data-id="${p.id}" title="Editar">✎</button>
+        </div>
+        <div class="meta">${used}/${p.total} clases usadas${used >= p.total ? " · completo" : ""}</div>
+        <div class="progress-bar"><div class="progress-fill ${used >= p.total ? 'complete' : ''}" style="width:${pct}%"></div></div>
+      </div>`;
+  }).join("");
+  $("packages-list").querySelectorAll("button").forEach(b => {
+    b.onclick = () => openPackageForm(packages.find(p => p.id === b.dataset.id));
+  });
+}
+$("packages-add-btn").onclick = () => openPackageForm(null);
+
+let currentPkgId = null;
+function openPackageForm(pkg) {
+  currentPkgId = pkg?.id || null;
+  $("pkg-title").value = pkg?.title || "";
+  $("pkg-total").value = pkg?.total ?? 10;
+  $("package-modal-title").textContent = currentPkgId ? "Editar paquete" : "Nuevo paquete";
+  $("pkg-delete-btn").style.display = currentPkgId ? "block" : "none";
+  $("packages-overlay").classList.remove("open");
+  $("package-form-overlay").classList.add("open");
+}
+$("pkg-cancel-btn").onclick = () => {
+  $("package-form-overlay").classList.remove("open");
+  $("packages-overlay").classList.add("open");
+};
+$("package-form-overlay").onclick = (e) => { if (e.target.id === "package-form-overlay") $("package-form-overlay").classList.remove("open"); };
+$("pkg-delete-btn").onclick = () => {
+  if (currentPkgId) deletePackage(currentPkgId);
+  $("package-form-overlay").classList.remove("open");
+};
+$("package-form").onsubmit = (e) => {
+  e.preventDefault();
+  const title = $("pkg-title").value.trim();
+  if (!title) return;
+  savePackage({
+    id: currentPkgId || uidGen(),
+    title,
+    total: Number($("pkg-total").value) || 10,
+  });
+  $("package-form-overlay").classList.remove("open");
+  $("packages-overlay").classList.add("open");
 };
 
 // register service worker for installability (best-effort)
