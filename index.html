@@ -357,6 +357,18 @@
         <label>Total de clases del paquete</label>
         <input type="number" id="pkg-total" min="1" value="10" required />
       </div>
+      <div class="field">
+        <label>Clases que ya llevas (opcional)</label>
+        <input type="number" id="pkg-used-base" min="0" placeholder="Ej: 8 si ya diste 8 y quedan 2" />
+      </div>
+      <div class="field">
+        <label>Valor por clase (opcional)</label>
+        <input type="number" id="pkg-amount" min="0" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Días de la semana para recordatorio (opcional)</label>
+        <div class="weekday-picker" id="pkg-weekdays"></div>
+      </div>
       <div class="modal-actions">
         <button type="submit" class="btn-primary" id="pkg-submit-btn">Guardar</button>
         <button type="button" class="btn-secondary" id="pkg-cancel-btn">Cancelar</button>
@@ -560,7 +572,9 @@ async function deletePackage(id) {
   await deleteDoc(doc(db, "users", uid, "packages", id));
 }
 function packageUsed(pkgId) {
-  return entries.filter(e => e.packageId === pkgId && e.attended).length;
+  const pkg = packages.find(p => p.id === pkgId);
+  const base = pkg?.usedBase || 0;
+  return base + entries.filter(e => e.packageId === pkgId && e.attended).length;
 }
 
 // ---------- RENDER ----------
@@ -617,28 +631,52 @@ $("history-overlay").onclick = (e) => { if (e.target.id === "history-overlay") $
 function renderReminders() {
   const today = todayISO();
   const todayWeekday = new Date(today + "T00:00:00").getDay();
-  const pending = templates.filter(t =>
+  const pendingTpl = templates.filter(t =>
     (t.weekdays || []).includes(todayWeekday) &&
     !entries.some(e => e.templateId === t.id && e.date === today)
   );
-  $("reminders").innerHTML = pending.map(t => `
+  const pendingPkg = packages.filter(p =>
+    (p.weekdays || []).includes(todayWeekday) &&
+    packageUsed(p.id) < p.total &&
+    !entries.some(e => e.packageId === p.id && e.date === today)
+  );
+  const tplCards = pendingTpl.map(t => `
     <div class="reminder-card">
       <div class="reminder-text">¿Diste hoy tu clase en <b>${escapeHtml(t.title)}</b>?</div>
       <div class="reminder-actions">
-        <button class="yes" data-tpl="${t.id}" data-yes="1">Sí, asistí</button>
-        <button class="no" data-tpl="${t.id}" data-yes="0">No asistí</button>
+        <button class="yes" data-kind="tpl" data-id="${t.id}" data-yes="1">Sí, asistí</button>
+        <button class="no" data-kind="tpl" data-id="${t.id}" data-yes="0">No asistí</button>
       </div>
     </div>
-  `).join("");
+  `);
+  const pkgCards = pendingPkg.map(p => `
+    <div class="reminder-card">
+      <div class="reminder-text">¿Diste hoy tu clase de paquete con <b>${escapeHtml(p.title)}</b>? (van ${packageUsed(p.id)}/${p.total})</div>
+      <div class="reminder-actions">
+        <button class="yes" data-kind="pkg" data-id="${p.id}" data-yes="1">Sí, asistí</button>
+        <button class="no" data-kind="pkg" data-id="${p.id}" data-yes="0">No asistí</button>
+      </div>
+    </div>
+  `);
+  $("reminders").innerHTML = tplCards.join("") + pkgCards.join("");
   $("reminders").querySelectorAll("button").forEach(btn => {
     btn.onclick = async () => {
-      const tpl = templates.find(t => t.id === btn.dataset.tpl);
       const attended = btn.dataset.yes === "1";
-      await saveEntry({
-        id: uidGen(), date: today, type: "fija", title: tpl.title,
-        amount: Number(tpl.amount) || 0, paid: false, attended,
-        notes: tpl.level ? `Nivel: ${tpl.level}` : "", templateId: tpl.id,
-      });
+      if (btn.dataset.kind === "tpl") {
+        const tpl = templates.find(t => t.id === btn.dataset.id);
+        await saveEntry({
+          id: uidGen(), date: today, type: "fija", title: tpl.title,
+          amount: Number(tpl.amount) || 0, paid: false, attended,
+          notes: tpl.level ? `Nivel: ${tpl.level}` : "", templateId: tpl.id,
+        });
+      } else {
+        const pkg = packages.find(p => p.id === btn.dataset.id);
+        await saveEntry({
+          id: uidGen(), date: today, type: "personalizada", title: pkg.title,
+          amount: Number(pkg.amount) || 0, paid: false, attended,
+          notes: "", packageId: pkg.id,
+        });
+      }
     };
   });
 }
@@ -934,13 +972,14 @@ function renderPackagesList() {
   $("packages-list").innerHTML = packages.map(p => {
     const used = packageUsed(p.id);
     const pct = Math.min(100, Math.round((used / p.total) * 100));
+    const days = (p.weekdays || []).map(w => WEEKDAYS[w]).join(", ");
     return `
       <div class="package-item">
         <div class="package-item-top">
           <div>${escapeHtml(p.title)}</div>
           <button class="icon-btn" data-id="${p.id}" title="Editar">✎</button>
         </div>
-        <div class="meta">${used}/${p.total} clases usadas${used >= p.total ? " · completo" : ""}</div>
+        <div class="meta">${used}/${p.total} clases usadas${used >= p.total ? " · completo" : ""}${days ? " · recordatorio: " + days : ""}</div>
         <div class="progress-bar"><div class="progress-fill ${used >= p.total ? 'complete' : ''}" style="width:${pct}%"></div></div>
       </div>`;
   }).join("");
@@ -951,10 +990,27 @@ function renderPackagesList() {
 $("packages-add-btn").onclick = () => openPackageForm(null);
 
 let currentPkgId = null;
+let selectedPkgWeekdays = [];
+function buildPkgWeekdayPicker() {
+  $("pkg-weekdays").innerHTML = WEEKDAYS.map((w,i) =>
+    `<button type="button" class="weekday-opt ${selectedPkgWeekdays.includes(i)?'active':''}" data-day="${i}">${w}</button>`
+  ).join("");
+  $("pkg-weekdays").querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      const day = Number(b.dataset.day);
+      selectedPkgWeekdays = selectedPkgWeekdays.includes(day) ? selectedPkgWeekdays.filter(d=>d!==day) : [...selectedPkgWeekdays, day];
+      buildPkgWeekdayPicker();
+    };
+  });
+}
 function openPackageForm(pkg) {
   currentPkgId = pkg?.id || null;
   $("pkg-title").value = pkg?.title || "";
   $("pkg-total").value = pkg?.total ?? 10;
+  $("pkg-used-base").value = pkg?.usedBase ?? "";
+  $("pkg-amount").value = pkg?.amount ?? "";
+  selectedPkgWeekdays = pkg?.weekdays ? [...pkg.weekdays] : [];
+  buildPkgWeekdayPicker();
   $("package-modal-title").textContent = currentPkgId ? "Editar paquete" : "Nuevo paquete";
   $("pkg-delete-btn").style.display = currentPkgId ? "block" : "none";
   $("packages-overlay").classList.remove("open");
@@ -977,6 +1033,9 @@ $("package-form").onsubmit = (e) => {
     id: currentPkgId || uidGen(),
     title,
     total: Number($("pkg-total").value) || 10,
+    usedBase: Number($("pkg-used-base").value) || 0,
+    amount: Number($("pkg-amount").value) || 0,
+    weekdays: selectedPkgWeekdays,
   });
   $("package-form-overlay").classList.remove("open");
   $("packages-overlay").classList.add("open");
