@@ -102,8 +102,12 @@
   }
   .filter-btn.active .filter-count { background: rgba(23,21,26,0.12); }
 
-  #group-filter-field { max-width: 320px; margin-bottom: 16px; }
-  #group-filter-field label { margin-bottom: 6px; }
+  #group-filter-field { margin-bottom: 16px; }
+  #group-filter-field label { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  #group-filter-clear-wrap button {
+    background: none; border: none; color: #6FA9C9; font-size: 11px; cursor: pointer;
+    text-transform: none; letter-spacing: 0; font-family: 'Inter', sans-serif;
+  }
 
   .subtotal-bar {
     display: none; align-items: center; gap: 16px; flex-wrap: wrap;
@@ -274,8 +278,8 @@
     <div class="filters" id="filters"></div>
     <div class="filters" id="status-filters"></div>
     <div class="field" id="group-filter-field">
-      <label>Filtrar por escuela / paquete</label>
-      <select id="group-filter"><option value="">Todos los grupos</option></select>
+      <label>Filtrar por escuela / paquete <span id="group-filter-clear-wrap"></span></label>
+      <div class="filters" id="group-filter-chips"></div>
     </div>
     <div class="subtotal-bar" id="subtotal-bar"></div>
     <div id="list"></div>
@@ -475,7 +479,7 @@ let templates = [];
 let packages = [];
 let filter = "todas";
 let statusFilter = "todas";
-let groupFilter = ""; // "" | "tpl:<id>" | "pkg:<id>"
+let groupFilters = []; // array of "tpl:<id>" | "pkg:<id>"
 let unsubEntries = null, unsubTemplates = null, unsubPackages = null;
 
 // ---------- helpers ----------
@@ -640,11 +644,31 @@ function renderStatusFilters() {
 }
 
 function renderGroupFilter() {
-  const tplOptions = templates.map(t => `<option value="tpl:${t.id}">Escuela · ${escapeHtml(t.title)}</option>`).join("");
-  const pkgOptions = packages.map(p => `<option value="pkg:${p.id}">Paquete · ${escapeHtml(p.title)}</option>`).join("");
-  $("group-filter").innerHTML = `<option value="">Todos los grupos</option>${tplOptions}${pkgOptions}`;
-  $("group-filter").value = groupFilter;
-  $("group-filter").onchange = () => { groupFilter = $("group-filter").value; render(); };
+  const tplChips = templates.map(t => {
+    const key = `tpl:${t.id}`;
+    return `<button class="filter-btn ${groupFilters.includes(key)?'active':''}" data-key="${key}">Escuela · ${escapeHtml(t.title)}</button>`;
+  });
+  const pkgChips = packages.map(p => {
+    const key = `pkg:${p.id}`;
+    return `<button class="filter-btn ${groupFilters.includes(key)?'active':''}" data-key="${key}">Paquete · ${escapeHtml(p.title)}</button>`;
+  });
+  const all = [...tplChips, ...pkgChips];
+  $("group-filter-chips").innerHTML = all.length
+    ? all.join("")
+    : `<span style="color:#6E6876; font-size:12.5px;">Crea una plantilla o un paquete para poder filtrar por ellos.</span>`;
+  $("group-filter-chips").querySelectorAll("button").forEach(b => {
+    b.onclick = () => {
+      const key = b.dataset.key;
+      groupFilters = groupFilters.includes(key) ? groupFilters.filter(k => k !== key) : [...groupFilters, key];
+      render();
+    };
+  });
+  $("group-filter-clear-wrap").innerHTML = groupFilters.length
+    ? `<button type="button" id="group-filter-clear-btn">Limpiar (${groupFilters.length})</button>`
+    : "";
+  if (groupFilters.length) {
+    $("group-filter-clear-btn").onclick = () => { groupFilters = []; render(); };
+  }
 }
 
 function renderHistory() {
@@ -747,15 +771,19 @@ function applyFilters(list) {
   let out = filter === "todas" ? list : list.filter(e => e.type === filter);
   if (statusFilter === "pagadas") out = out.filter(e => e.paid);
   if (statusFilter === "pendientes") out = out.filter(e => !e.paid);
-  if (groupFilter) {
-    const [kind, id] = groupFilter.split(":");
-    out = out.filter(e => (kind === "tpl" ? e.templateId : e.packageId) === id);
+  if (groupFilters.length) {
+    out = out.filter(e =>
+      groupFilters.some(key => {
+        const [kind, id] = key.split(":");
+        return (kind === "tpl" ? e.templateId : e.packageId) === id;
+      })
+    );
   }
   return out;
 }
 
 function renderSubtotalBar(list) {
-  const anyFilterActive = filter !== "todas" || statusFilter !== "todas" || groupFilter !== "";
+  const anyFilterActive = filter !== "todas" || statusFilter !== "todas" || groupFilters.length > 0;
   if (!anyFilterActive) {
     $("subtotal-bar").classList.remove("show");
     return;
