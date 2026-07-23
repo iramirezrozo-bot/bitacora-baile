@@ -646,7 +646,7 @@ function renderStatusFilters() {
 function renderGroupFilter() {
   const tplChips = templates.map(t => {
     const key = `tpl:${t.id}`;
-    return `<button class="filter-btn ${groupFilters.includes(key)?'active':''}" data-key="${key}">Escuela · ${escapeHtml(t.title)}</button>`;
+    return `<button class="filter-btn ${groupFilters.includes(key)?'active':''}" data-key="${key}">${escapeHtml(t.level || "Fija")} · ${escapeHtml(t.title)}</button>`;
   });
   const pkgChips = packages.map(p => {
     const key = `pkg:${p.id}`;
