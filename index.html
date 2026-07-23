@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Bitácora" />
 <meta name="theme-color" content="#17151A" />
-<link rel="apple-touch-icon" href="azu.png.png" />
+<link rel="apple-touch-icon" href="icon-180.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap">
 <style>
@@ -263,7 +263,10 @@
     <input id="login-email" type="email" placeholder="Correo" autocomplete="username" />
     <input id="login-password" type="password" placeholder="Contraseña" autocomplete="current-password" />
     <button class="btn-primary" id="login-btn">Entrar</button>
-    <button class="link-btn" id="toggle-mode-btn">¿Primera vez? Crear cuenta</button>
+    <div style="display:flex; justify-content:space-between;">
+      <button class="link-btn" id="toggle-mode-btn">¿Primera vez? Crear cuenta</button>
+      <button class="link-btn" id="forgot-password-btn">¿Olvidaste tu contraseña?</button>
+    </div>
     <div id="login-error"></div>
   </div>
 
@@ -474,7 +477,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import {
   getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
-  signOut, onAuthStateChanged
+  signOut, onAuthStateChanged, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, query
@@ -548,6 +551,7 @@ $("toggle-mode-btn").onclick = () => {
 $("login-btn").onclick = async () => {
   const email = $("login-email").value.trim();
   const password = $("login-password").value;
+  $("login-error").style.color = "";
   $("login-error").textContent = "";
   try {
     if (isSignupMode) {
@@ -556,6 +560,7 @@ $("login-btn").onclick = async () => {
       await signInWithEmailAndPassword(auth, email, password);
     }
   } catch (e) {
+    $("login-error").style.color = "";
     $("login-error").textContent = traducirErrorAuth(e.code);
   }
 };
@@ -567,10 +572,30 @@ function traducirErrorAuth(code) {
     "auth/invalid-credential": "Correo o contraseña incorrectos.",
     "auth/email-already-in-use": "Ya existe una cuenta con ese correo, intenta entrar.",
     "auth/weak-password": "La contraseña necesita al menos 6 caracteres.",
+    "auth/missing-email": "Escribe tu correo arriba primero.",
   };
   return map[code] || "Ocurrió un error, intenta de nuevo.";
 }
 $("logout-btn").onclick = () => signOut(auth);
+
+$("forgot-password-btn").onclick = async () => {
+  const email = $("login-email").value.trim();
+  const errorEl = $("login-error");
+  errorEl.style.color = "";
+  if (!email) {
+    errorEl.style.color = "#D6577C";
+    errorEl.textContent = "Escribe tu correo arriba primero.";
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    errorEl.style.color = "#7BAE8F";
+    errorEl.textContent = "Te enviamos un correo para restablecer tu contraseña. Revisa tu bandeja (y spam).";
+  } catch (e) {
+    errorEl.style.color = "#D6577C";
+    errorEl.textContent = traducirErrorAuth(e.code);
+  }
+};
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
