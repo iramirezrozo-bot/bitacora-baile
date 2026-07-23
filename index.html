@@ -102,6 +102,19 @@
   }
   .filter-btn.active .filter-count { background: rgba(23,21,26,0.12); }
 
+  #group-filter-field { max-width: 320px; margin-bottom: 16px; }
+  #group-filter-field label { margin-bottom: 6px; }
+
+  .subtotal-bar {
+    display: none; align-items: center; gap: 16px; flex-wrap: wrap;
+    background: #1E1B22; border: 1px solid #2C2833; border-radius: 10px;
+    padding: 12px 16px; margin-bottom: 16px; font-size: 13px;
+  }
+  .subtotal-bar.show { display: flex; }
+  .subtotal-bar b { font-family: 'Oswald', sans-serif; }
+  .subtotal-bar .sub-pending b { color: #E0793C; }
+  .subtotal-bar .sub-collected b { color: #7BAE8F; }
+
   /* ---------- Historial mensual ---------- */
   .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .history-table th {
@@ -259,6 +272,12 @@
     </div>
 
     <div class="filters" id="filters"></div>
+    <div class="filters" id="status-filters"></div>
+    <div class="field" id="group-filter-field">
+      <label>Filtrar por escuela / paquete</label>
+      <select id="group-filter"><option value="">Todos los grupos</option></select>
+    </div>
+    <div class="subtotal-bar" id="subtotal-bar"></div>
     <div id="list"></div>
   </div>
 
@@ -455,6 +474,8 @@ let entries = [];
 let templates = [];
 let packages = [];
 let filter = "todas";
+let statusFilter = "todas";
+let groupFilter = ""; // "" | "tpl:<id>" | "pkg:<id>"
 let unsubEntries = null, unsubTemplates = null, unsubPackages = null;
 
 // ---------- helpers ----------
@@ -580,6 +601,8 @@ function packageUsed(pkgId) {
 // ---------- RENDER ----------
 function render() {
   renderFilters();
+  renderStatusFilters();
+  renderGroupFilter();
   renderReminders();
   renderStats();
   renderList();
@@ -599,6 +622,29 @@ function renderFilters() {
   $("filters").querySelectorAll("button").forEach(b => {
     b.onclick = () => { filter = b.dataset.filter; render(); };
   });
+}
+
+function renderStatusFilters() {
+  const counts = {
+    todas: entries.length,
+    pagadas: entries.filter(e => e.paid).length,
+    pendientes: entries.filter(e => !e.paid).length,
+  };
+  const els = [["todas","Todas"],["pagadas","Pagadas"],["pendientes","Pendientes"]];
+  $("status-filters").innerHTML = els.map(([key,label]) =>
+    `<button class="filter-btn ${statusFilter===key?'active':''}" data-status="${key}">${label}<span class="filter-count">${counts[key]}</span></button>`
+  ).join("");
+  $("status-filters").querySelectorAll("button").forEach(b => {
+    b.onclick = () => { statusFilter = b.dataset.status; render(); };
+  });
+}
+
+function renderGroupFilter() {
+  const tplOptions = templates.map(t => `<option value="tpl:${t.id}">Escuela · ${escapeHtml(t.title)}</option>`).join("");
+  const pkgOptions = packages.map(p => `<option value="pkg:${p.id}">Paquete · ${escapeHtml(p.title)}</option>`).join("");
+  $("group-filter").innerHTML = `<option value="">Todos los grupos</option>${tplOptions}${pkgOptions}`;
+  $("group-filter").value = groupFilter;
+  $("group-filter").onchange = () => { groupFilter = $("group-filter").value; render(); };
 }
 
 function renderHistory() {
@@ -697,11 +743,39 @@ function renderStats() {
   $("stat-attended").textContent = attendedMonth;
 }
 
+function applyFilters(list) {
+  let out = filter === "todas" ? list : list.filter(e => e.type === filter);
+  if (statusFilter === "pagadas") out = out.filter(e => e.paid);
+  if (statusFilter === "pendientes") out = out.filter(e => !e.paid);
+  if (groupFilter) {
+    const [kind, id] = groupFilter.split(":");
+    out = out.filter(e => (kind === "tpl" ? e.templateId : e.packageId) === id);
+  }
+  return out;
+}
+
+function renderSubtotalBar(list) {
+  const anyFilterActive = filter !== "todas" || statusFilter !== "todas" || groupFilter !== "";
+  if (!anyFilterActive) {
+    $("subtotal-bar").classList.remove("show");
+    return;
+  }
+  const collected = list.filter(e => e.paid).reduce((s,e) => s + e.amount, 0);
+  const pending = list.filter(e => !e.paid).reduce((s,e) => s + e.amount, 0);
+  $("subtotal-bar").innerHTML = `
+    <span>${list.length} clase${list.length === 1 ? "" : "s"}</span>
+    <span class="sub-collected">Cobrado: <b>$${fmtMoney(collected)}</b></span>
+    <span class="sub-pending">Pendiente: <b>$${fmtMoney(pending)}</b></span>
+  `;
+  $("subtotal-bar").classList.add("show");
+}
+
 function renderList() {
-  const list = filter === "todas" ? entries : entries.filter(e => e.type === filter);
+  const list = applyFilters(entries);
+  renderSubtotalBar(list);
   const sorted = [...list].sort((a,b) => a.date < b.date ? 1 : -1);
   if (sorted.length === 0) {
-    $("list").innerHTML = `<div class="empty"><div class="empty-title">Todavía no hay nada aquí</div>Registra tu primera clase, escuela fija o show con "+ Nueva entrada".</div>`;
+    $("list").innerHTML = `<div class="empty"><div class="empty-title">Nada por aquí</div>${entries.length === 0 ? 'Registra tu primera clase, escuela fija o show con "+ Nueva entrada".' : "No hay clases que coincidan con estos filtros."}</div>`;
     return;
   }
   const groups = new Map();
